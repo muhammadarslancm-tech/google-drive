@@ -19,6 +19,10 @@ class FileController extends Controller
     {
         $user = $this->request->user();
         
+        if (!$user || !isset($user['_id'])) {
+            $this->error('User not authenticated', 401, ['auth' => 'Authentication required']);
+        }
+        
         if (!isset($_FILES['file'])) {
             $this->error('No file uploaded', 400);
         }
@@ -40,7 +44,18 @@ class FileController extends Controller
         // Create upload directory if it doesn't exist
         $uploadDir = $config['uploads_path'];
         if (!is_dir($uploadDir)) {
-            mkdir($uploadDir, 0755, true);
+            if (!mkdir($uploadDir, 0777, true)) {
+                $this->error('Failed to create upload directory', 500);
+            }
+        }
+        
+        // Ensure directory is writable
+        if (!is_writable($uploadDir)) {
+            // Try to make it writable
+            @chmod($uploadDir, 0777);
+            if (!is_writable($uploadDir)) {
+                $this->error('Upload directory is not writable. Please check permissions.', 500);
+            }
         }
 
         // Generate unique filename
@@ -50,8 +65,13 @@ class FileController extends Controller
 
         // Move uploaded file
         if (!move_uploaded_file($file['tmp_name'], $filePath)) {
-            $this->error('Failed to save file', 500);
+            $error = error_get_last();
+            $errorMsg = $error ? $error['message'] : 'Unknown error';
+            $this->error('Failed to save file: ' . $errorMsg, 500);
         }
+        
+        // Ensure file has proper permissions
+        @chmod($filePath, 0644);
 
         // Create file record
         $fileModel = new File();
@@ -80,6 +100,11 @@ class FileController extends Controller
     public function index(): void
     {
         $user = $this->request->user();
+        
+        if (!$user || !isset($user['_id'])) {
+            $this->error('User not authenticated', 401, ['auth' => 'Authentication required']);
+        }
+        
         $folderId = $this->request->get('folder_id');
         $includeTrashed = $this->request->get('trashed') === 'true';
 
@@ -96,10 +121,13 @@ class FileController extends Controller
         $sharedFiles = $shareModel->getSharedWithUser($user['_id'], 'file');
         
         foreach ($sharedFiles as $share) {
+            if (!isset($share['resource_id'])) {
+                continue;
+            }
             $sharedFile = $fileModel->findById($share['resource_id']);
             if ($sharedFile) {
                 $sharedFile['shared'] = true;
-                $sharedFile['permission'] = $share['permission'];
+                $sharedFile['permission'] = $share['permission'] ?? 'read';
                 $files[] = $sharedFile;
             }
         }
@@ -113,6 +141,10 @@ class FileController extends Controller
     public function show(string $id): void
     {
         $user = $this->request->user();
+        
+        if (!$user || !isset($user['_id'])) {
+            $this->error('User not authenticated', 401, ['auth' => 'Authentication required']);
+        }
         
         $fileModel = new File();
         $file = $fileModel->findById($id);
@@ -143,6 +175,10 @@ class FileController extends Controller
     public function download(string $id): void
     {
         $user = $this->request->user();
+        
+        if (!$user || !isset($user['_id'])) {
+            $this->error('User not authenticated', 401, ['auth' => 'Authentication required']);
+        }
         
         $fileModel = new File();
         $file = $fileModel->findById($id);
@@ -184,6 +220,11 @@ class FileController extends Controller
     public function update(string $id): void
     {
         $user = $this->request->user();
+        
+        if (!$user || !isset($user['_id'])) {
+            $this->error('User not authenticated', 401, ['auth' => 'Authentication required']);
+        }
+        
         $data = $this->request->all();
 
         $fileModel = new File();
@@ -217,6 +258,10 @@ class FileController extends Controller
     {
         $user = $this->request->user();
         
+        if (!$user || !isset($user['_id'])) {
+            $this->error('User not authenticated', 401, ['auth' => 'Authentication required']);
+        }
+        
         $fileModel = new File();
         $deleted = $fileModel->trashFile($id, $user['_id']);
 
@@ -234,6 +279,10 @@ class FileController extends Controller
     {
         $user = $this->request->user();
         
+        if (!$user || !isset($user['_id'])) {
+            $this->error('User not authenticated', 401, ['auth' => 'Authentication required']);
+        }
+        
         $fileModel = new File();
         $restored = $fileModel->restoreFile($id, $user['_id']);
 
@@ -250,6 +299,10 @@ class FileController extends Controller
     public function permanentDelete(string $id): void
     {
         $user = $this->request->user();
+        
+        if (!$user || !isset($user['_id'])) {
+            $this->error('User not authenticated', 401, ['auth' => 'Authentication required']);
+        }
         
         $fileModel = new File();
         $file = $fileModel->findById($id);
@@ -278,6 +331,10 @@ class FileController extends Controller
     public function storage(): void
     {
         $user = $this->request->user();
+        
+        if (!$user || !isset($user['_id'])) {
+            $this->error('User not authenticated', 401, ['auth' => 'Authentication required']);
+        }
         
         $fileModel = new File();
         $used = $fileModel->getUserStorageSize($user['_id']);

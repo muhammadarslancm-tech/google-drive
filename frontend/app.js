@@ -580,6 +580,7 @@ async function verifyAuthentication() {
     
     // If no token or user, redirect to login
     if (!token || !user) {
+        console.log('No token or user found, redirecting to login');
         window.location.href = '/login.php';
         return;
     }
@@ -594,11 +595,12 @@ async function verifyAuthentication() {
         });
 
         // If token is valid, update user data
-        if (response.data.success && response.data.data.user) {
+        if (response.data && response.data.success && response.data.data && response.data.data.user) {
             localStorage.setItem('user', JSON.stringify(response.data.data.user));
             return true;
         } else {
             // Invalid response, clear storage and redirect
+            console.log('Invalid response from /auth/me:', response.data);
             localStorage.removeItem('token');
             localStorage.removeItem('user');
             window.location.href = '/login.php';
@@ -607,6 +609,8 @@ async function verifyAuthentication() {
     } catch (error) {
         // Token is invalid or expired
         console.error('Authentication verification failed:', error);
+        console.error('Error response:', error.response?.data);
+        console.error('Error status:', error.response?.status);
         
         // Clear invalid token
         localStorage.removeItem('token');

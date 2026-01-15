@@ -364,8 +364,10 @@
                     }
                 })
                 .then(function(response) {
+                    console.log('response', response);
                     // Check if response is successful
                     if (response.data && response.data.success) {
+                        console.log('response.data', response.data);
                         // Store token and user data (same as login)
                         if (response.data.data && response.data.data.token) {
                             localStorage.setItem('token', response.data.data.token);

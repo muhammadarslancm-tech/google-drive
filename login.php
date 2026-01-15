@@ -271,21 +271,27 @@
                     }
                 })
                 .then(function(response) {
+                    console.log('Login response:', response.data);
                     // Check if response is successful
                     if (response.data && response.data.success) {
                         // Store token and user data
                         if (response.data.data && response.data.data.token) {
+                            console.log('Storing token:', response.data.data.token.substring(0, 20) + '...');
                             localStorage.setItem('token', response.data.data.token);
                             if (response.data.data.user) {
                                 localStorage.setItem('user', JSON.stringify(response.data.data.user));
+                                console.log('Stored user:', response.data.data.user.email);
                             }
+                            console.log('Redirecting to dashboard...');
                             window.location.href = '/frontend/dashboard.html';
                         } else {
+                            console.error('No token in response:', response.data);
                             alert('Login successful but no token received. Please try again.');
                             submitBtn.prop('disabled', false).text(originalText);
                         }
                     } else {
                         // Unexpected response format
+                        console.error('Unexpected response format:', response.data);
                         var message = response.data?.message || 'Login failed. Please try again.';
                         alert(message);
                         submitBtn.prop('disabled', false).text(originalText);

@@ -56,6 +56,16 @@ class AuthMiddleware
         }
 
         // Set user in request
+        if (!isset($tokenData['user']) || !is_array($tokenData['user'])) {
+            http_response_code(401);
+            header('Content-Type: application/json');
+            echo json_encode([
+                'success' => false,
+                'message' => 'Invalid token data: user not found'
+            ]);
+            return false;
+        }
+        
         $request->setUser($tokenData['user']);
         
         return true;

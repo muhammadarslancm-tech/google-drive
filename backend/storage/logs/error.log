@@ -22,3 +22,7 @@ Route: POST /auth/register
 
 [2026-01-15 09:49:38] Warning: Trying to access array offset on null in /var/www/google-drive/backend/app/Controllers/FileController.php:91
 --------------------------------------------------------------------------------
+[2026-01-15 09:52:54] Warning: move_uploaded_file(/var/www/google-drive/backend/config/../storage/uploads/6968b8f623aa2_1768470774.png): Failed to open stream: Permission denied in /var/www/google-drive/backend/app/Controllers/FileController.php:52
+--------------------------------------------------------------------------------
+[2026-01-15 09:56:35] Warning: Trying to access array offset on null in /var/www/google-drive/backend/app/Controllers/FileController.php:107
+--------------------------------------------------------------------------------
