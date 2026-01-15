@@ -200,10 +200,18 @@
         </div>
     </div>
 
-    <script src="https://code.jquery.com/jquery-1.10.2.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
     <script type="text/javascript">
+        const API_BASE_URL = '/api';
+        
         $(document).ready(function() {
+            // Check if already logged in
+            if (localStorage.getItem('token')) {
+                window.location.href = '/frontend/dashboard.html';
+            }
+            
             // Form validation
             $('#loginForm').on('submit', function(e) {
                 e.preventDefault();
@@ -215,8 +223,28 @@
                     return false;
                 }
 
-                // Here you would send the form data to your backend
-                console.log('Login attempt with:', {email: email, password: password});
+                // Show loading state
+                var submitBtn = $(this).find('button[type="submit"]');
+                var originalText = submitBtn.text();
+                submitBtn.prop('disabled', true).text('Signing in...');
+
+                // Send login request
+                axios.post(API_BASE_URL + '/auth/login', {
+                    email: email,
+                    password: password
+                })
+                .then(function(response) {
+                    if (response.data.success) {
+                        localStorage.setItem('token', response.data.data.token);
+                        localStorage.setItem('user', JSON.stringify(response.data.data.user));
+                        window.location.href = '/frontend/dashboard.html';
+                    }
+                })
+                .catch(function(error) {
+                    var message = error.response?.data?.message || 'Login failed. Please try again.';
+                    alert(message);
+                    submitBtn.prop('disabled', false).text(originalText);
+                });
             });
         });
     </script>

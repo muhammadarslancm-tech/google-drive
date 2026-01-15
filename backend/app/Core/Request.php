@@ -1,0 +1,128 @@
+<?php
+
+namespace App\Core;
+
+/**
+ * Request Class
+ * Handles HTTP request data
+ */
+class Request
+{
+    private array $data = [];
+    private ?array $user = null;
+
+    public function __construct()
+    {
+        $this->data = array_merge($_GET, $_POST);
+        
+        // Handle JSON body
+        $json = file_get_contents('php://input');
+        if (!empty($json)) {
+            $decoded = json_decode($json, true);
+            if (json_last_error() === JSON_ERROR_NONE) {
+                $this->data = array_merge($this->data, $decoded);
+            }
+        }
+    }
+
+    /**
+     * Get request data by key
+     */
+    public function get(string $key, $default = null)
+    {
+        return $this->data[$key] ?? $default;
+    }
+
+    /**
+     * Get all request data
+     */
+    public function all(): array
+    {
+        return $this->data;
+    }
+
+    /**
+     * Get request method
+     */
+    public function method(): string
+    {
+        return $_SERVER['REQUEST_METHOD'] ?? 'GET';
+    }
+
+    /**
+     * Get request URI
+     */
+    public function uri(): string
+    {
+        return $_SERVER['REQUEST_URI'] ?? '/';
+    }
+
+    /**
+     * Get request path
+     */
+    public function path(): string
+    {
+        $uri = parse_url($this->uri(), PHP_URL_PATH);
+        return $uri ?: '/';
+    }
+
+    /**
+     * Get headers
+     */
+    public function headers(): array
+    {
+        return getallheaders() ?: [];
+    }
+
+    /**
+     * Get header by name
+     */
+    public function header(string $name, $default = null)
+    {
+        $headers = $this->headers();
+        $name = strtolower($name);
+        
+        foreach ($headers as $key => $value) {
+            if (strtolower($key) === $name) {
+                return $value;
+            }
+        }
+        
+        return $default;
+    }
+
+    /**
+     * Get authenticated user
+     */
+    public function user(): ?array
+    {
+        return $this->user;
+    }
+
+    /**
+     * Set authenticated user
+     */
+    public function setUser(array $user): void
+    {
+        $this->user = $user;
+    }
+
+    /**
+     * Get client IP
+     */
+    public function ip(): string
+    {
+        return $_SERVER['HTTP_X_FORWARDED_FOR'] ?? 
+               $_SERVER['HTTP_X_REAL_IP'] ?? 
+               $_SERVER['REMOTE_ADDR'] ?? 
+               'unknown';
+    }
+
+    /**
+     * Get user agent
+     */
+    public function userAgent(): string
+    {
+        return $_SERVER['HTTP_USER_AGENT'] ?? 'unknown';
+    }
+}
