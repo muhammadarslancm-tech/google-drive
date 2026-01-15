@@ -81,20 +81,28 @@ date_default_timezone_set('UTC');
 require_once __DIR__ . '/app/Helpers/ErrorHandler.php';
 \App\Helpers\ErrorHandler::init();
 
-// Start output buffering to catch any unexpected output
-ob_start();
+// Start output buffering early to catch any unexpected output
+// This must be done before any output (including whitespace)
+if (!ob_get_level()) {
+    ob_start();
+}
 
-// API Response Headers - Ensure all API responses are JSON
-header('Content-Type: application/json; charset=utf-8');
-
-// CORS headers for API
-header('Access-Control-Allow-Origin: *');
-header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
-header('Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With');
-header('Access-Control-Max-Age: 86400');
-
-// Handle preflight OPTIONS requests (only in web context)
-if (php_sapi_name() !== 'cli' && ($_SERVER['REQUEST_METHOD'] ?? '') === 'OPTIONS') {
-    http_response_code(200);
-    exit;
+// CORS headers for API (set early, but Content-Type will be set by controllers)
+// Only set CORS headers, not Content-Type (let controllers handle that)
+if (php_sapi_name() !== 'cli') {
+    header('Access-Control-Allow-Origin: *');
+    header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
+    header('Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With');
+    header('Access-Control-Max-Age: 86400');
+    
+    // Handle preflight OPTIONS requests
+    if (($_SERVER['REQUEST_METHOD'] ?? '') === 'OPTIONS') {
+        // Clear any output buffers
+        while (ob_get_level()) {
+            ob_end_clean();
+        }
+        http_response_code(200);
+        header('Content-Type: application/json; charset=utf-8');
+        exit;
+    }
 }

@@ -4,32 +4,23 @@
 
 const API_BASE_URL = '/api';
 
-// Axios interceptor for authentication and API headers
-axios.interceptors.request.use(
-    config => {
-        // Set Content-Type for JSON requests (except file uploads)
-        if (!(config.data instanceof FormData)) {
-            config.headers['Content-Type'] = 'application/json';
-        }
-        
-        // Add authentication token if available
-        const token = localStorage.getItem('token');
-        if (token) {
-            config.headers.Authorization = `Bearer ${token}`;
-        }
-        
-        return config;
-    },
-    error => {
-        return Promise.reject(error);
+// Axios interceptor for authentication
+axios.interceptors.request.use(config => {
+    if (!(config.data instanceof FormData)) {
+        config.headers['Content-Type'] = 'application/json';
     }
-);
+    const token = localStorage.getItem('token');
+    if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+});
 
 // Axios interceptor for error handling
 axios.interceptors.response.use(
     response => response,
     error => {
-        if (error.response && error.response.status === 401) {
+        if (error.response?.status === 401) {
             localStorage.removeItem('token');
             localStorage.removeItem('user');
             window.location.href = '/login.php';
@@ -578,45 +569,26 @@ async function verifyAuthentication() {
     const token = localStorage.getItem('token');
     const user = localStorage.getItem('user');
     
-    // If no token or user, redirect to login
     if (!token || !user) {
-        console.log('No token or user found, redirecting to login');
         window.location.href = '/login.php';
         return;
     }
 
-    // Verify token with API
     try {
-        const response = await axios.get(`${API_BASE_URL}/auth/me`, {
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
-            }
-        });
+        const response = await axios.get(`${API_BASE_URL}/auth/me`);
 
-        // If token is valid, update user data
-        if (response.data && response.data.success && response.data.data && response.data.data.user) {
+        if (response.data?.success && response.data.data?.user) {
             localStorage.setItem('user', JSON.stringify(response.data.data.user));
             return true;
         } else {
-            // Invalid response, clear storage and redirect
-            console.log('Invalid response from /auth/me:', response.data);
             localStorage.removeItem('token');
             localStorage.removeItem('user');
             window.location.href = '/login.php';
             return false;
         }
     } catch (error) {
-        // Token is invalid or expired
-        console.error('Authentication verification failed:', error);
-        console.error('Error response:', error.response?.data);
-        console.error('Error status:', error.response?.status);
-        
-        // Clear invalid token
         localStorage.removeItem('token');
         localStorage.removeItem('user');
-        
-        // Redirect to login
         window.location.href = '/login.php';
         return false;
     }
@@ -629,25 +601,13 @@ function handleLogout() {
     const token = localStorage.getItem('token');
     
     if (token) {
-        axios.post(`${API_BASE_URL}/auth/logout`, {}, {
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
-            }
-        })
-        .then(() => {
-            localStorage.removeItem('token');
-            localStorage.removeItem('user');
-            window.location.href = '/login.php';
-        })
-        .catch(() => {
-            // Even if logout fails, clear local storage
-            localStorage.removeItem('token');
-            localStorage.removeItem('user');
-            window.location.href = '/login.php';
-        });
+        axios.post(`${API_BASE_URL}/auth/logout`)
+            .finally(() => {
+                localStorage.removeItem('token');
+                localStorage.removeItem('user');
+                window.location.href = '/login.php';
+            });
     } else {
-        // No token, just clear and redirect
         localStorage.removeItem('token');
         localStorage.removeItem('user');
         window.location.href = '/login.php';

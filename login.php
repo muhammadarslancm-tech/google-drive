@@ -207,124 +207,58 @@
         // API Configuration
         const API_BASE_URL = '/api';
         
-        // Axios interceptor for error handling
-        axios.interceptors.response.use(
-            response => response,
-            error => {
-                // Handle network errors
-                if (!error.response) {
-                    console.error('Network error:', error);
-                    return Promise.reject(error);
-                }
-                return Promise.reject(error);
-            }
-        );
-        
         $(document).ready(async function() {
-            // Check if already logged in and verify token
+            // Check if already logged in
             const token = localStorage.getItem('token');
             if (token) {
                 try {
                     const response = await axios.get(API_BASE_URL + '/auth/me', {
-                        headers: {
-                            'Authorization': `Bearer ${token}`,
-                            'Content-Type': 'application/json'
-                        }
+                        headers: { 'Authorization': `Bearer ${token}` }
                     });
                     
-                    // If token is valid, redirect to dashboard
-                    if (response.data && response.data.success && response.data.data && response.data.data.user) {
+                    if (response.data?.success && response.data.data?.user) {
                         window.location.href = '/frontend/dashboard.html';
                         return;
                     }
                 } catch (error) {
-                    // Token is invalid, clear it and continue with login
-                    console.log('Token verification failed, continuing with login');
                     localStorage.removeItem('token');
                     localStorage.removeItem('user');
                 }
             }
             
-            // Form validation
+            // Handle form submission
             $('#loginForm').on('submit', function(e) {
                 e.preventDefault();
-                var email = $('#email').val();
-                var password = $('#password').val();
+                const email = $('#email').val();
+                const password = $('#password').val();
 
-                if (email == '' || password == '') {
+                if (!email || !password) {
                     alert('Please fill in all fields');
-                    return false;
+                    return;
                 }
 
-                // Show loading state
-                var submitBtn = $(this).find('button[type="submit"]');
-                var originalText = submitBtn.text();
+                const submitBtn = $(this).find('button[type="submit"]');
+                const originalText = submitBtn.text();
                 submitBtn.prop('disabled', true).text('Signing in...');
 
-                // Send login request to API
-                axios.post(API_BASE_URL + '/auth/login', {
-                    email: email,
-                    password: password
-                }, {
-                    headers: {
-                        'Content-Type': 'application/json'
-                    }
-                })
-                .then(function(response) {
-                    console.log('Login response:', response.data);
-                    // Check if response is successful
-                    if (response.data && response.data.success) {
-                        // Store token and user data
-                        if (response.data.data && response.data.data.token) {
-                            console.log('Storing token:', response.data.data.token.substring(0, 20) + '...');
+                axios.post(API_BASE_URL + '/auth/login', { email, password })
+                    .then(function(response) {
+                        if (response.data?.success && response.data.data?.token) {
                             localStorage.setItem('token', response.data.data.token);
                             if (response.data.data.user) {
                                 localStorage.setItem('user', JSON.stringify(response.data.data.user));
-                                console.log('Stored user:', response.data.data.user.email);
                             }
-                            console.log('Redirecting to dashboard...');
                             window.location.href = '/frontend/dashboard.html';
                         } else {
-                            console.error('No token in response:', response.data);
-                            alert('Login successful but no token received. Please try again.');
+                            alert(response.data?.message || 'Login failed. Please try again.');
                             submitBtn.prop('disabled', false).text(originalText);
                         }
-                    } else {
-                        // Unexpected response format
-                        console.error('Unexpected response format:', response.data);
-                        var message = response.data?.message || 'Login failed. Please try again.';
+                    })
+                    .catch(function(error) {
+                        const message = error.response?.data?.message || 'Login failed. Please try again.';
                         alert(message);
                         submitBtn.prop('disabled', false).text(originalText);
-                    }
-                })
-                .catch(function(error) {
-                    // Handle different error types
-                    var message = 'Login failed. Please try again.';
-                    
-                    if (error.response) {
-                        // Server responded with error status
-                        if (error.response.data && error.response.data.message) {
-                            message = error.response.data.message;
-                            
-                            // Show validation errors if available
-                            if (error.response.data.errors) {
-                                var errorMessages = Object.values(error.response.data.errors).join('\n');
-                                message = errorMessages || message;
-                            }
-                        } else {
-                            message = `Error ${error.response.status}: ${error.response.statusText}`;
-                        }
-                    } else if (error.request) {
-                        // Request made but no response
-                        message = 'Network error: Could not connect to server. Please check your connection.';
-                    } else {
-                        // Something else happened
-                        message = error.message || message;
-                    }
-                    
-                    alert(message);
-                    submitBtn.prop('disabled', false).text(originalText);
-                });
+                    });
             });
         });
     </script>

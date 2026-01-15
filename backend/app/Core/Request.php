@@ -101,7 +101,24 @@ class Request
      */
     public function headers(): array
     {
-        return getallheaders() ?: [];
+        $headers = [];
+        
+        // Try getallheaders() first (works in Apache)
+        if (function_exists('getallheaders')) {
+            $headers = getallheaders() ?: [];
+        }
+        
+        // Fallback: manually extract from $_SERVER
+        if (empty($headers)) {
+            foreach ($_SERVER as $key => $value) {
+                if (strpos($key, 'HTTP_') === 0) {
+                    $headerName = str_replace('_', '-', substr($key, 5));
+                    $headers[$headerName] = $value;
+                }
+            }
+        }
+        
+        return $headers;
     }
 
     /**
@@ -109,12 +126,29 @@ class Request
      */
     public function header(string $name, $default = null)
     {
-        $headers = $this->headers();
         $name = strtolower($name);
         
+        // Check getallheaders() first
+        $headers = $this->headers();
         foreach ($headers as $key => $value) {
             if (strtolower($key) === $name) {
                 return $value;
+            }
+        }
+        
+        // Fallback: Check $_SERVER directly (for Authorization header especially)
+        $serverKey = 'HTTP_' . strtoupper(str_replace('-', '_', $name));
+        if (isset($_SERVER[$serverKey])) {
+            return $_SERVER[$serverKey];
+        }
+        
+        // Check REDIRECT_HTTP_AUTHORIZATION (for mod_rewrite)
+        if ($name === 'authorization') {
+            if (isset($_SERVER['REDIRECT_HTTP_AUTHORIZATION'])) {
+                return $_SERVER['REDIRECT_HTTP_AUTHORIZATION'];
+            }
+            if (isset($_SERVER['HTTP_AUTHORIZATION'])) {
+                return $_SERVER['HTTP_AUTHORIZATION'];
             }
         }
         

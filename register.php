@@ -258,47 +258,29 @@
         // API Configuration
         const API_BASE_URL = '/api';
         
-        // Axios interceptor for error handling
-        axios.interceptors.response.use(
-            response => response,
-            error => {
-                // Handle network errors
-                if (!error.response) {
-                    console.error('Network error:', error);
-                    return Promise.reject(error);
-                }
-                return Promise.reject(error);
-            }
-        );
-        
         $(document).ready(async function() {
-            // Check if already logged in and verify token
+            // Check if already logged in
             const token = localStorage.getItem('token');
             if (token) {
                 try {
                     const response = await axios.get(API_BASE_URL + '/auth/me', {
-                        headers: {
-                            'Authorization': `Bearer ${token}`,
-                            'Content-Type': 'application/json'
-                        }
+                        headers: { 'Authorization': `Bearer ${token}` }
                     });
                     
-                    // If token is valid, redirect to dashboard
-                    if (response.data && response.data.success && response.data.data && response.data.data.user) {
+                    if (response.data?.success && response.data.data?.user) {
                         window.location.href = '/frontend/dashboard.html';
                         return;
                     }
                 } catch (error) {
-                    // Token is invalid, clear it and continue with registration
-                    console.log('Token verification failed, continuing with registration');
                     localStorage.removeItem('token');
                     localStorage.removeItem('user');
                 }
             }
             
+            // Password strength indicator
             $('#password').on('input', function() {
-                var password = $(this).val();
-                var strength = 0;
+                const password = $(this).val();
+                let strength = 0;
                 
                 if (password.length >= 8) strength++;
                 if (/[a-z]/.test(password)) strength++;
@@ -306,7 +288,7 @@
                 if (/[0-9]/.test(password)) strength++;
                 if (/[^a-zA-Z0-9]/.test(password)) strength++;
 
-                var strengthBar = $('#strengthBar');
+                const strengthBar = $('#strengthBar');
                 strengthBar.removeClass('password-strength-weak password-strength-fair password-strength-good');
                 
                 if (strength < 2) {
@@ -318,104 +300,63 @@
                 }
             });
 
+            // Handle form submission
             $('#registerForm').on('submit', function(e) {
                 e.preventDefault();
-                var firstName = $('#firstName').val();
-                var lastName = $('#lastName').val();
-                var email = $('#email').val();
-                var password = $('#password').val();
-                var confirmPassword = $('#confirmPassword').val();
-                var terms = $('#terms').is(':checked');
+                const firstName = $('#firstName').val();
+                const lastName = $('#lastName').val();
+                const email = $('#email').val();
+                const password = $('#password').val();
+                const confirmPassword = $('#confirmPassword').val();
+                const terms = $('#terms').is(':checked');
 
-                if (firstName == '' || lastName == '' || email == '' || password == '') {
+                if (!firstName || !lastName || !email || !password) {
                     alert('Please fill in all fields');
-                    return false;
+                    return;
                 }
 
-                if (password != confirmPassword) {
+                if (password !== confirmPassword) {
                     alert('Passwords do not match');
-                    return false;
+                    return;
                 }
 
                 if (password.length < 8) {
                     alert('Password must be at least 8 characters long');
-                    return false;
+                    return;
                 }
 
                 if (!terms) {
                     alert('Please agree to the terms and conditions');
-                    return false;
+                    return;
                 }
 
-                // Show loading state
-                var submitBtn = $(this).find('button[type="submit"]');
-                var originalText = submitBtn.text();
+                const submitBtn = $(this).find('button[type="submit"]');
+                const originalText = submitBtn.text();
                 submitBtn.prop('disabled', true).text('Creating account...');
 
-                // Send registration request to API
                 axios.post(API_BASE_URL + '/auth/register', {
                     first_name: firstName,
                     last_name: lastName,
                     email: email,
                     password: password
-                }, {
-                    headers: {
-                        'Content-Type': 'application/json'
-                    }
                 })
-                .then(function(response) {
-                    console.log('response', response);
-                    // Check if response is successful
-                    if (response.data && response.data.success) {
-                        console.log('response.data', response.data);
-                        // Store token and user data (same as login)
-                        if (response.data.data && response.data.data.token) {
+                    .then(function(response) {
+                        if (response.data?.success && response.data.data?.token) {
                             localStorage.setItem('token', response.data.data.token);
                             if (response.data.data.user) {
                                 localStorage.setItem('user', JSON.stringify(response.data.data.user));
                             }
-                            // Redirect to dashboard (user is now logged in)
                             window.location.href = '/frontend/dashboard.html';
                         } else {
-                            // Token not received, redirect to login
-                            alert('Registration successful! Please login.');
-                            window.location.href = '/login.php';
+                            alert(response.data?.message || 'Registration failed. Please try again.');
+                            submitBtn.prop('disabled', false).text(originalText);
                         }
-                    } else {
-                        // Unexpected response format
-                        var message = response.data?.message || 'Registration failed. Please try again.';
+                    })
+                    .catch(function(error) {
+                        const message = error.response?.data?.message || 'Registration failed. Please try again.';
                         alert(message);
                         submitBtn.prop('disabled', false).text(originalText);
-                    }
-                })
-                .catch(function(error) {
-                    // Handle different error types
-                    var message = 'Registration failed. Please try again.';
-                    
-                    if (error.response) {
-                        // Server responded with error status
-                        if (error.response.data && error.response.data.message) {
-                            message = error.response.data.message;
-                            
-                            // Show validation errors if available
-                            if (error.response.data.errors) {
-                                var errorMessages = Object.values(error.response.data.errors).join('\n');
-                                message = errorMessages || message;
-                            }
-                        } else {
-                            message = `Error ${error.response.status}: ${error.response.statusText}`;
-                        }
-                    } else if (error.request) {
-                        // Request made but no response
-                        message = 'Network error: Could not connect to server. Please check your connection.';
-                    } else {
-                        // Something else happened
-                        message = error.message || message;
-                    }
-                    
-                    alert(message);
-                    submitBtn.prop('disabled', false).text(originalText);
-                });
+                    });
             });
         });
     </script>

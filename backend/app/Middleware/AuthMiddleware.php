@@ -16,58 +16,49 @@ class AuthMiddleware
         $token = $request->header('Authorization');
         
         if (empty($token)) {
-            http_response_code(401);
-            header('Content-Type: application/json');
-            echo json_encode([
-                'success' => false,
-                'message' => 'Authentication required'
-            ]);
-            return false;
+            $this->sendError('Authentication required', 401);
         }
 
-        // Remove 'Bearer ' prefix if present
-        if (strpos($token, 'Bearer ') === 0) {
+        // Remove 'Bearer ' prefix and trim whitespace
+        if (stripos($token, 'Bearer ') === 0) {
             $token = substr($token, 7);
+        }
+        $token = trim($token);
+
+        if (empty($token)) {
+            $this->sendError('Invalid token format', 401);
         }
 
         $tokenModel = new Token();
         $tokenData = $tokenModel->findByToken($token);
 
         if (!$tokenData) {
-            http_response_code(401);
-            header('Content-Type: application/json');
-            echo json_encode([
-                'success' => false,
-                'message' => 'Invalid or expired token'
-            ]);
-            return false;
+            $this->sendError('Invalid or expired token', 401);
         }
 
-        // Check expiration
-        $expiresAt = strtotime($tokenData['expires_at']);
-        if (time() > $expiresAt) {
-            http_response_code(401);
-            header('Content-Type: application/json');
-            echo json_encode([
-                'success' => false,
-                'message' => 'Token expired'
-            ]);
-            return false;
+        if (time() > strtotime($tokenData['expires_at'])) {
+            $this->sendError('Token expired', 401);
         }
 
-        // Set user in request
         if (!isset($tokenData['user']) || !is_array($tokenData['user'])) {
-            http_response_code(401);
-            header('Content-Type: application/json');
-            echo json_encode([
-                'success' => false,
-                'message' => 'Invalid token data: user not found'
-            ]);
-            return false;
+            $this->sendError('Invalid token data', 401);
         }
         
         $request->setUser($tokenData['user']);
-        
         return true;
+    }
+    
+    private function sendError(string $message, int $code): void
+    {
+        while (ob_get_level() > 0) {
+            ob_end_clean();
+        }
+        http_response_code($code);
+        header('Content-Type: application/json; charset=utf-8');
+        echo json_encode([
+            'success' => false,
+            'message' => $message
+        ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        exit;
     }
 }
