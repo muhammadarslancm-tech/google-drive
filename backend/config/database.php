@@ -7,3 +7,5 @@ return [
     'username' => getenv('MONGODB_USERNAME') ?: '',
     'password' => getenv('MONGODB_PASSWORD') ?: '',
 ];
+
+// mongodb://localhost:27017/

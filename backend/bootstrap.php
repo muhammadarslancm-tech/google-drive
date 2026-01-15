@@ -5,8 +5,8 @@
  * Autoloads classes and initializes the application
  */
 
-// Define base path
-define('BASE_PATH', dirname(__DIR__));
+// Define base path (backend directory)
+define('BASE_PATH', __DIR__);
 
 // Autoloader
 spl_autoload_register(function ($class) {
@@ -34,12 +34,16 @@ ini_set('log_errors', 1);
 // Set timezone
 date_default_timezone_set('UTC');
 
-// CORS headers
+// API Response Headers - Ensure all API responses are JSON
+header('Content-Type: application/json; charset=utf-8');
+
+// CORS headers for API
 header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
 header('Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With');
+header('Access-Control-Max-Age: 86400');
 
-// Handle preflight requests
+// Handle preflight OPTIONS requests
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     http_response_code(200);
     exit;

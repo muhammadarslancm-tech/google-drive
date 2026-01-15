@@ -203,11 +203,12 @@
                     <i class="mdi mdi-upload me-1"></i> Upload
                 </button>
                 <div class="dropdown">
-                    <button class="btn btn-link text-muted" type="button" data-bs-toggle="dropdown">
-                        <i class="mdi mdi-account-circle" style="font-size: 24px;"></i>
+                    <button class="btn btn-link text-muted d-flex align-items-center" type="button" data-bs-toggle="dropdown">
+                        <i class="mdi mdi-account-circle me-2" style="font-size: 24px;"></i>
+                        <span id="userNameDisplay" class="d-none d-md-inline"></span>
                     </button>
                     <ul class="dropdown-menu dropdown-menu-end">
-                        <li><a class="dropdown-item" href="#" id="userInfoBtn">Profile</a></li>
+                        <li><h6 class="dropdown-header" id="userEmailDisplay"></h6></li>
                         <li><hr class="dropdown-divider"></li>
                         <li><a class="dropdown-item" href="#" id="logoutBtn2">Logout</a></li>
                     </ul>

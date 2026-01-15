@@ -1,11 +1,24 @@
 RewriteEngine On
 RewriteBase /
 
-# API routes
+# API routes - MUST be first, all /api/* requests go to backend
+# Try multiple methods to ensure it works
 RewriteCond %{REQUEST_URI} ^/api/
-RewriteRule ^api/(.*)$ /backend/public/index.php/api/$1 [L,QSA]
+RewriteRule ^api/(.*)$ backend/public/index.php [L,QSA,E=REQUEST_URI:/api/$1]
 
-# Frontend routes
-RewriteCond %{REQUEST_FILENAME} !-f
-RewriteCond %{REQUEST_FILENAME} !-d
-RewriteRule ^(.*)$ /frontend/$1 [L]
+# Alternative: If above doesn't work, try api-router.php
+# RewriteCond %{REQUEST_URI} ^/api/
+# RewriteRule ^api/(.*)$ api-router.php?path=$1 [L,QSA]
+
+# Don't process if file exists (static files)
+RewriteCond %{REQUEST_FILENAME} -f
+RewriteRule ^ - [L]
+
+# Don't process if directory exists
+RewriteCond %{REQUEST_FILENAME} -d
+RewriteRule ^ - [L]
+
+# Frontend routes - only if not API and not backend
+RewriteCond %{REQUEST_URI} !^/api/
+RewriteCond %{REQUEST_URI} !^/backend/
+RewriteRule ^(.*)$ frontend/$1 [L]

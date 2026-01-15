@@ -17,12 +17,26 @@ abstract class Controller
 
     /**
      * Send JSON response
+     * Ensures consistent JSON API responses
      */
     protected function json(array $data, int $statusCode = 200): void
     {
         http_response_code($statusCode);
-        header('Content-Type: application/json');
-        echo json_encode($data);
+        header('Content-Type: application/json; charset=utf-8');
+        
+        // Encode JSON with proper flags for UTF-8 and pretty print in development
+        $json = json_encode($data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            // Fallback error response if JSON encoding fails
+            http_response_code(500);
+            $json = json_encode([
+                'success' => false,
+                'message' => 'Internal server error: Failed to encode response'
+            ]);
+        }
+        
+        echo $json;
         exit;
     }
 

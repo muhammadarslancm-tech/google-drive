@@ -62,8 +62,38 @@ class Request
      */
     public function path(): string
     {
-        $uri = parse_url($this->uri(), PHP_URL_PATH);
-        return $uri ?: '/';
+        // Priority 1: REQUEST_URI (most reliable)
+        $uri = $_SERVER['REQUEST_URI'] ?? '';
+        
+        // Priority 2: REDIRECT_URL (from mod_rewrite)
+        if (empty($uri) && isset($_SERVER['REDIRECT_URL'])) {
+            $uri = $_SERVER['REDIRECT_URL'];
+        }
+        
+        // Priority 3: PATH_INFO (from rewrite)
+        if (empty($uri) && isset($_SERVER['PATH_INFO'])) {
+            $uri = $_SERVER['PATH_INFO'];
+        }
+        
+        // Priority 4: Default to root
+        if (empty($uri)) {
+            return '/';
+        }
+        
+        // Remove query string
+        $path = parse_url($uri, PHP_URL_PATH);
+        
+        // If path is empty, return root
+        if (empty($path) || $path === '') {
+            return '/';
+        }
+        
+        // Ensure path starts with /
+        if ($path[0] !== '/') {
+            $path = '/' . $path;
+        }
+        
+        return $path;
     }
 
     /**

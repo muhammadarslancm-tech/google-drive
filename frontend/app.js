@@ -4,13 +4,20 @@
 
 const API_BASE_URL = '/api';
 
-// Axios interceptor for authentication
+// Axios interceptor for authentication and API headers
 axios.interceptors.request.use(
     config => {
+        // Set Content-Type for JSON requests (except file uploads)
+        if (!(config.data instanceof FormData)) {
+            config.headers['Content-Type'] = 'application/json';
+        }
+        
+        // Add authentication token if available
         const token = localStorage.getItem('token');
         if (token) {
             config.headers.Authorization = `Bearer ${token}`;
         }
+        
         return config;
     },
     error => {
@@ -37,17 +44,16 @@ let currentFolderId = null;
 let currentUser = null;
 
 // Initialize app
-$(document).ready(function() {
-    // Check authentication
-    const token = localStorage.getItem('token');
-    const user = localStorage.getItem('user');
+$(document).ready(async function() {
+    // Verify authentication before loading dashboard
+    await verifyAuthentication();
     
-    if (!token || !user) {
-        window.location.href = '/login.php';
-        return;
+    // Get user from localStorage
+    const user = localStorage.getItem('user');
+    if (user) {
+        currentUser = JSON.parse(user);
+        displayUserInfo(currentUser);
     }
-
-    currentUser = JSON.parse(user);
     
     // Load initial view
     loadFiles();
@@ -567,21 +573,81 @@ function shareFolder(folderId) {
     });
 }
 
+// Authentication verification
+async function verifyAuthentication() {
+    const token = localStorage.getItem('token');
+    const user = localStorage.getItem('user');
+    
+    // If no token or user, redirect to login
+    if (!token || !user) {
+        window.location.href = '/login.php';
+        return;
+    }
+
+    // Verify token with API
+    try {
+        const response = await axios.get(`${API_BASE_URL}/auth/me`, {
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            }
+        });
+
+        // If token is valid, update user data
+        if (response.data.success && response.data.data.user) {
+            localStorage.setItem('user', JSON.stringify(response.data.data.user));
+            return true;
+        } else {
+            // Invalid response, clear storage and redirect
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            window.location.href = '/login.php';
+            return false;
+        }
+    } catch (error) {
+        // Token is invalid or expired
+        console.error('Authentication verification failed:', error);
+        
+        // Clear invalid token
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        
+        // Redirect to login
+        window.location.href = '/login.php';
+        return false;
+    }
+}
+
 // Utility functions
 function handleLogout() {
     if (!confirm('Are you sure you want to logout?')) return;
     
-    axios.post(`${API_BASE_URL}/auth/logout`)
+    const token = localStorage.getItem('token');
+    
+    if (token) {
+        axios.post(`${API_BASE_URL}/auth/logout`, {}, {
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            }
+        })
         .then(() => {
             localStorage.removeItem('token');
             localStorage.removeItem('user');
             window.location.href = '/login.php';
         })
         .catch(() => {
+            // Even if logout fails, clear local storage
             localStorage.removeItem('token');
             localStorage.removeItem('user');
             window.location.href = '/login.php';
         });
+    } else {
+        // No token, just clear and redirect
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        window.location.href = '/login.php';
+    }
 }
 
 function handleSearch() {
@@ -606,6 +672,17 @@ function formatFileSize(bytes) {
     const sizes = ['Bytes', 'KB', 'MB', 'GB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+}
+
+function displayUserInfo(user) {
+    if (user) {
+        const fullName = `${user.first_name || ''} ${user.last_name || ''}`.trim() || 'User';
+        const email = user.email || '';
+        
+        // Display user name in top bar
+        $('#userNameDisplay').text(fullName);
+        $('#userEmailDisplay').text(email);
+    }
 }
 
 function escapeHtml(text) {

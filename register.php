@@ -257,10 +257,28 @@
     <script type="text/javascript">
         const API_BASE_URL = '/api';
         
-        $(document).ready(function() {
-            // Check if already logged in
-            if (localStorage.getItem('token')) {
-                window.location.href = '/frontend/dashboard.html';
+        $(document).ready(async function() {
+            // Check if already logged in and verify token
+            const token = localStorage.getItem('token');
+            if (token) {
+                try {
+                    const response = await axios.get(API_BASE_URL + '/auth/me', {
+                        headers: {
+                            'Authorization': `Bearer ${token}`,
+                            'Content-Type': 'application/json'
+                        }
+                    });
+                    
+                    // If token is valid, redirect to dashboard
+                    if (response.data.success && response.data.data.user) {
+                        window.location.href = '/frontend/dashboard.html';
+                        return;
+                    }
+                } catch (error) {
+                    // Token is invalid, clear it and continue with registration
+                    localStorage.removeItem('token');
+                    localStorage.removeItem('user');
+                }
             }
             
             $('#password').on('input', function() {

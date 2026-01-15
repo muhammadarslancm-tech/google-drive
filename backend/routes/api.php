@@ -4,10 +4,50 @@ use App\Core\Router;
 use App\Middleware\AuthMiddleware;
 
 /**
- * API Routes
+ * API Routes Configuration
+ * 
+ * All routes defined here are accessible via /api/{route}
+ * Example: POST /api/auth/register calls AuthController::register()
+ * 
+ * Routes are processed by: backend/public/index.php
+ * Path prefix /api is automatically removed by the Router
  */
 
 $router = new Router();
+
+// Health check endpoint
+$router->get('/health', function() {
+    header('Content-Type: application/json');
+    echo json_encode([
+        'success' => true,
+        'message' => 'API is working',
+        'timestamp' => date('Y-m-d H:i:s')
+    ]);
+    exit;
+});
+
+// Debug endpoint
+$router->get('/debug', function() {
+    header('Content-Type: application/json');
+    $request = new \App\Core\Request();
+    echo json_encode([
+        'success' => true,
+        'server' => [
+            'REQUEST_URI' => $_SERVER['REQUEST_URI'] ?? 'not set',
+            'REDIRECT_URL' => $_SERVER['REDIRECT_URL'] ?? 'not set',
+            'PATH_INFO' => $_SERVER['PATH_INFO'] ?? 'not set',
+            'SCRIPT_NAME' => $_SERVER['SCRIPT_NAME'] ?? 'not set',
+            'QUERY_STRING' => $_SERVER['QUERY_STRING'] ?? 'not set',
+            'REQUEST_METHOD' => $_SERVER['REQUEST_METHOD'] ?? 'not set',
+        ],
+        'request' => [
+            'path' => $request->path(),
+            'uri' => $request->uri(),
+            'method' => $request->method(),
+        ]
+    ], JSON_PRETTY_PRINT);
+    exit;
+});
 
 // Authentication routes (no middleware)
 $router->post('/auth/register', [\App\Controllers\AuthController::class, 'register']);
