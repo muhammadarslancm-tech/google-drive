@@ -2,21 +2,38 @@
 
 namespace App\Core;
 
-use MongoDB\Collection;
+use MongoDB\Driver\Manager;
+use MongoDB\Driver\Query;
+use MongoDB\Driver\BulkWrite;
+use MongoDB\Driver\Command;
+use MongoDB\Driver\Exception\Exception as MongoDBException;
 use MongoDB\BSON\ObjectId;
+use MongoDB\BSON\UTCDateTime;
 
 /**
  * Base Model Class
  * All models must extend this class
+ * Uses MongoDB Driver API directly (no external library required)
  */
 abstract class Model
 {
-    protected Collection $collection;
+    protected Manager $manager;
+    protected string $databaseName;
     protected string $collectionName;
 
     public function __construct()
     {
-        $this->collection = Database::getInstance()->getCollection($this->collectionName);
+        $db = Database::getInstance();
+        $this->manager = $db->getManager();
+        $this->databaseName = $db->getDatabaseName();
+    }
+
+    /**
+     * Get namespace (database.collection)
+     */
+    protected function getNamespace(): string
+    {
+        return $this->databaseName . '.' . $this->collectionName;
     }
 
     /**
@@ -25,7 +42,11 @@ abstract class Model
     public function findById(string $id): ?array
     {
         try {
-            $result = $this->collection->findOne(['_id' => new ObjectId($id)]);
+            $query = new Query(['_id' => new ObjectId($id)]);
+            $cursor = $this->manager->executeQuery($this->getNamespace(), $query);
+            $cursor->setTypeMap(['root' => 'array', 'document' => 'array']);
+            
+            $result = current($cursor->toArray());
             return $result ? $this->convertToArray($result) : null;
         } catch (\Exception $e) {
             return null;
@@ -37,14 +58,20 @@ abstract class Model
      */
     public function find(array $criteria = [], array $options = []): array
     {
-        $cursor = $this->collection->find($criteria, $options);
-        $results = [];
-        
-        foreach ($cursor as $document) {
-            $results[] = $this->convertToArray($document);
+        try {
+            $query = new Query($criteria, $options);
+            $cursor = $this->manager->executeQuery($this->getNamespace(), $query);
+            $cursor->setTypeMap(['root' => 'array', 'document' => 'array']);
+            
+            $results = [];
+            foreach ($cursor as $document) {
+                $results[] = $this->convertToArray($document);
+            }
+            
+            return $results;
+        } catch (\Exception $e) {
+            return [];
         }
-        
-        return $results;
     }
 
     /**
@@ -52,8 +79,16 @@ abstract class Model
      */
     public function findOne(array $criteria = []): ?array
     {
-        $result = $this->collection->findOne($criteria);
-        return $result ? $this->convertToArray($result) : null;
+        try {
+            $query = new Query($criteria, ['limit' => 1]);
+            $cursor = $this->manager->executeQuery($this->getNamespace(), $query);
+            $cursor->setTypeMap(['root' => 'array', 'document' => 'array']);
+            
+            $result = current($cursor->toArray());
+            return $result ? $this->convertToArray($result) : null;
+        } catch (\Exception $e) {
+            return null;
+        }
     }
 
     /**
@@ -61,11 +96,23 @@ abstract class Model
      */
     public function create(array $data): ?string
     {
-        $data['created_at'] = new \MongoDB\BSON\UTCDateTime();
-        $data['updated_at'] = new \MongoDB\BSON\UTCDateTime();
-        
-        $result = $this->collection->insertOne($data);
-        return $result->getInsertedId()->__toString();
+        try {
+            // Ensure timestamps
+            if (!isset($data['created_at'])) {
+                $data['created_at'] = new UTCDateTime();
+            }
+            if (!isset($data['updated_at'])) {
+                $data['updated_at'] = new UTCDateTime();
+            }
+            
+            $bulk = new BulkWrite();
+            $insertedId = $bulk->insert($data);
+            $this->manager->executeBulkWrite($this->getNamespace(), $bulk);
+            
+            return $insertedId->__toString();
+        } catch (\Exception $e) {
+            return null;
+        }
     }
 
     /**
@@ -73,13 +120,16 @@ abstract class Model
      */
     public function update(string $id, array $data): bool
     {
-        $data['updated_at'] = new \MongoDB\BSON\UTCDateTime();
-        
         try {
-            $result = $this->collection->updateOne(
+            $data['updated_at'] = new UTCDateTime();
+            
+            $bulk = new BulkWrite();
+            $bulk->update(
                 ['_id' => new ObjectId($id)],
                 ['$set' => $data]
             );
+            
+            $result = $this->manager->executeBulkWrite($this->getNamespace(), $bulk);
             return $result->getModifiedCount() > 0;
         } catch (\Exception $e) {
             return false;
@@ -92,10 +142,29 @@ abstract class Model
     public function delete(string $id): bool
     {
         try {
-            $result = $this->collection->deleteOne(['_id' => new ObjectId($id)]);
+            $bulk = new BulkWrite();
+            $bulk->delete(['_id' => new ObjectId($id)]);
+            
+            $result = $this->manager->executeBulkWrite($this->getNamespace(), $bulk);
             return $result->getDeletedCount() > 0;
         } catch (\Exception $e) {
             return false;
+        }
+    }
+
+    /**
+     * Delete multiple documents
+     */
+    public function deleteMany(array $criteria): int
+    {
+        try {
+            $bulk = new BulkWrite();
+            $bulk->delete($criteria, ['limit' => false]);
+            
+            $result = $this->manager->executeBulkWrite($this->getNamespace(), $bulk);
+            return $result->getDeletedCount();
+        } catch (\Exception $e) {
+            return 0;
         }
     }
 
@@ -104,7 +173,19 @@ abstract class Model
      */
     public function count(array $criteria = []): int
     {
-        return $this->collection->countDocuments($criteria);
+        try {
+            $command = new Command([
+                'count' => $this->collectionName,
+                'query' => $criteria
+            ]);
+            
+            $cursor = $this->manager->executeCommand($this->databaseName, $command);
+            $result = current($cursor->toArray());
+            
+            return isset($result->n) ? (int)$result->n : 0;
+        } catch (\Exception $e) {
+            return 0;
+        }
     }
 
     /**
@@ -112,26 +193,24 @@ abstract class Model
      */
     protected function convertToArray($document): array
     {
+        if (!is_array($document)) {
+            $document = (array)$document;
+        }
+        
         $array = [];
         
         foreach ($document as $key => $value) {
             if ($value instanceof ObjectId) {
                 $array[$key] = $value->__toString();
-            } elseif ($value instanceof \MongoDB\BSON\UTCDateTime) {
+            } elseif ($value instanceof UTCDateTime) {
                 $array[$key] = $value->toDateTime()->format('Y-m-d H:i:s');
+            } elseif (is_array($value)) {
+                $array[$key] = $this->convertToArray($value);
             } else {
                 $array[$key] = $value;
             }
         }
         
         return $array;
-    }
-
-    /**
-     * Get collection instance
-     */
-    public function getCollection(): Collection
-    {
-        return $this->collection;
     }
 }

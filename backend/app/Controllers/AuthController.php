@@ -63,9 +63,29 @@ class AuthController extends Controller
 
         $user = $userModel->findByIdSafe($userId);
         
-        // Return consistent JSON response
+        if (!$user) {
+            $this->error('Failed to retrieve user after registration', 500);
+        }
+        
+        // Create token for newly registered user
+        $tokenModel = new Token();
+        try {
+            $token = $tokenModel->createToken(
+                $userId,
+                $this->request->ip(),
+                $this->request->userAgent()
+            );
+        } catch (\Exception $e) {
+            // Log error but don't fail registration - user can login later
+            error_log('Token creation failed during registration: ' . $e->getMessage());
+            $this->error('Registration successful but failed to create access token. Please login.', 500);
+        }
+        
+        // Return consistent JSON response with token (same format as login)
         $this->success([
-            'user' => $user
+            'user' => $user,
+            'token' => $token,
+            'token_type' => 'Bearer'
         ], 'User registered successfully', 201);
     }
 

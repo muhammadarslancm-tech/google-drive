@@ -1,0 +1,24 @@
+[2026-01-15 08:08:03] Router Exception: Class "MongoDB\Client" not found in /var/www/google-drive/backend/app/Core/Database.php:42
+Route: POST /auth/register
+#0 /var/www/google-drive/backend/app/Core/Database.php(52): App\Core\Database->__construct()
+#1 /var/www/google-drive/backend/app/Core/Model.php(19): App\Core\Database::getInstance()
+#2 /var/www/google-drive/backend/app/Controllers/AuthController.php(52): App\Core\Model->__construct()
+#3 /var/www/google-drive/backend/app/Core/Router.php(190): App\Controllers\AuthController->register()
+#4 /var/www/google-drive/backend/public/index.php(85): App\Core\Router->dispatch()
+#5 /var/www/google-drive/index.php(25): require_once('...')
+#6 {main}
+--------------------------------------------------------------------------------
+
+[2026-01-15 08:11:47] Router Exception: Class "MongoDB\Client" not found in /var/www/google-drive/backend/app/Core/Database.php:42
+Route: POST /auth/register
+#0 /var/www/google-drive/backend/app/Core/Database.php(52): App\Core\Database->__construct()
+#1 /var/www/google-drive/backend/app/Core/Model.php(19): App\Core\Database::getInstance()
+#2 /var/www/google-drive/backend/app/Controllers/AuthController.php(52): App\Core\Model->__construct()
+#3 /var/www/google-drive/backend/app/Core/Router.php(190): App\Controllers\AuthController->register()
+#4 /var/www/google-drive/backend/public/index.php(85): App\Core\Router->dispatch()
+#5 /var/www/google-drive/index.php(25): require_once('...')
+#6 {main}
+--------------------------------------------------------------------------------
+
+[2026-01-15 09:49:38] Warning: Trying to access array offset on null in /var/www/google-drive/backend/app/Controllers/FileController.php:91
+--------------------------------------------------------------------------------

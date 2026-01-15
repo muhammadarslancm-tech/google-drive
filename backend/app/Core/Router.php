@@ -193,17 +193,42 @@ class Router
                     } else {
                         throw new \Exception("Invalid route handler");
                     }
-                } catch (\Exception $e) {
+                } catch (\Throwable $e) {
+                    // Log the error
+                    $logDir = __DIR__ . '/../../storage/logs';
+                    if (!is_dir($logDir)) {
+                        mkdir($logDir, 0755, true);
+                    }
+                    $logFile = $logDir . '/error.log';
+                    $logEntry = sprintf(
+                        "[%s] Router Exception: %s in %s:%d\nRoute: %s %s\n%s\n%s\n",
+                        date('Y-m-d H:i:s'),
+                        $e->getMessage(),
+                        $e->getFile(),
+                        $e->getLine(),
+                        $requestMethod,
+                        $requestPath,
+                        $e->getTraceAsString(),
+                        str_repeat('-', 80) . "\n"
+                    );
+                    @file_put_contents($logFile, $logEntry, FILE_APPEND | LOCK_EX);
+                    
+                    // Clear output buffers
+                    while (ob_get_level()) {
+                        ob_end_clean();
+                    }
+                    
+                    // Return JSON error response
                     http_response_code(500);
-                    header('Content-Type: application/json');
+                    header('Content-Type: application/json; charset=utf-8');
                     echo json_encode([
                         'success' => false,
                         'message' => 'Internal server error',
                         'error' => $e->getMessage(),
                         'file' => $e->getFile(),
                         'line' => $e->getLine()
-                    ]);
-                    return;
+                    ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+                    exit;
                 }
                 
                 return;

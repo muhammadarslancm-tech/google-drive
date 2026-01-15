@@ -8,6 +8,11 @@
  * Example: POST /api/auth/register
  */
 
+// Start output buffering early to catch any unexpected output
+if (!ob_get_level()) {
+    ob_start();
+}
+
 // Ensure REQUEST_URI is set correctly for API routes
 // When accessed via rewrite or from root index.php, preserve the original URI
 $currentUri = $_SERVER['REQUEST_URI'] ?? '';
@@ -33,24 +38,87 @@ if (empty($currentUri) || strpos($currentUri, '/api/') !== 0) {
     }
 }
 
-// Load bootstrap first
+// Load bootstrap first (this will initialize error handling)
 require_once __DIR__ . '/../bootstrap.php';
 
 // Load routes
-$router = require __DIR__ . '/../routes/api.php';
+try {
+    $router = require __DIR__ . '/../routes/api.php';
+    
+    if (!$router) {
+        throw new \Exception('Failed to load routes');
+    }
+} catch (\Throwable $e) {
+    // Log route loading error
+    $logDir = __DIR__ . '/../storage/logs';
+    if (!is_dir($logDir)) {
+        mkdir($logDir, 0755, true);
+    }
+    $logFile = $logDir . '/error.log';
+    $logEntry = sprintf(
+        "[%s] Route Loading Error: %s in %s:%d\n%s\n%s\n",
+        date('Y-m-d H:i:s'),
+        $e->getMessage(),
+        $e->getFile(),
+        $e->getLine(),
+        $e->getTraceAsString(),
+        str_repeat('-', 80) . "\n"
+    );
+    @file_put_contents($logFile, $logEntry, FILE_APPEND | LOCK_EX);
+    
+    // Return JSON error
+    while (ob_get_level()) {
+        ob_end_clean();
+    }
+    http_response_code(500);
+    header('Content-Type: application/json; charset=utf-8');
+    echo json_encode([
+        'success' => false,
+        'message' => 'Failed to load routes',
+        'error' => $e->getMessage()
+    ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    exit;
+}
 
 // Dispatch request
 try {
     $router->dispatch();
-} catch (Exception $e) {
-    // Handle any errors gracefully
+} catch (\Throwable $e) {
+    // This catch is a fallback - ErrorHandler should catch most errors
+    // But we'll handle it here too to ensure JSON response
+    
+    // Log the error
+    $logDir = __DIR__ . '/../storage/logs';
+    if (!is_dir($logDir)) {
+        mkdir($logDir, 0755, true);
+    }
+    $logFile = $logDir . '/error.log';
+    $logEntry = sprintf(
+        "[%s] Exception: %s in %s:%d\n%s\n%s\n",
+        date('Y-m-d H:i:s'),
+        $e->getMessage(),
+        $e->getFile(),
+        $e->getLine(),
+        $e->getTraceAsString(),
+        str_repeat('-', 80) . "\n"
+    );
+    @file_put_contents($logFile, $logEntry, FILE_APPEND | LOCK_EX);
+    
+    // Return JSON error response
     http_response_code(500);
-    header('Content-Type: application/json');
+    header('Content-Type: application/json; charset=utf-8');
+    
+    // Clear any output buffers
+    while (ob_get_level()) {
+        ob_end_clean();
+    }
+    
     echo json_encode([
         'success' => false,
         'message' => 'Internal server error',
         'error' => $e->getMessage(),
         'file' => $e->getFile(),
         'line' => $e->getLine()
-    ]);
+    ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    exit;
 }

@@ -82,8 +82,8 @@ class Token extends Model
     public function deleteUserTokens(string $userId): bool
     {
         try {
-            $result = $this->collection->deleteMany(['user_id' => $userId]);
-            return $result->getDeletedCount() > 0;
+            $deletedCount = $this->deleteMany(['user_id' => $userId]);
+            return $deletedCount > 0;
         } catch (\Exception $e) {
             return false;
         }
@@ -95,10 +95,10 @@ class Token extends Model
     public function cleanExpiredTokens(): int
     {
         try {
-            $result = $this->collection->deleteMany([
-                'expires_at' => ['$lt' => date('Y-m-d H:i:s')]
+            $now = date('Y-m-d H:i:s');
+            return $this->deleteMany([
+                'expires_at' => ['$lt' => $now]
             ]);
-            return $result->getDeletedCount();
         } catch (\Exception $e) {
             return 0;
         }

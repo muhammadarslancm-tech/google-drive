@@ -24,6 +24,18 @@ All API endpoints are accessed via: `http://google-drive.test/api/`
   "password": "password123"
 }
 ```
+- **Response:**
+```json
+{
+  "success": true,
+  "message": "User registered successfully",
+  "data": {
+    "user": {...},
+    "token": "abc123...",
+    "token_type": "Bearer"
+  }
+}
+```
 
 ### Login
 - **URL:** `POST /api/auth/login`
