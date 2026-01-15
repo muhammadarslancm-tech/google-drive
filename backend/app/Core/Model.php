@@ -87,6 +87,7 @@ abstract class Model
             $result = current($cursor->toArray());
             return $result ? $this->convertToArray($result) : null;
         } catch (\Exception $e) {
+            error_log('MongoDB findOne error: ' . $e->getMessage() . ' | Criteria: ' . json_encode($criteria));
             return null;
         }
     }
@@ -107,10 +108,17 @@ abstract class Model
             
             $bulk = new BulkWrite();
             $insertedId = $bulk->insert($data);
-            $this->manager->executeBulkWrite($this->getNamespace(), $bulk);
+            $result = $this->manager->executeBulkWrite($this->getNamespace(), $bulk);
+            
+            // Verify write was successful
+            if ($result->getInsertedCount() === 0) {
+                error_log('MongoDB insert failed: No documents inserted');
+                return null;
+            }
             
             return $insertedId->__toString();
         } catch (\Exception $e) {
+            error_log('MongoDB create error: ' . $e->getMessage());
             return null;
         }
     }

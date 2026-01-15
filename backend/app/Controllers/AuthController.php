@@ -198,15 +198,43 @@ class AuthController extends Controller
             $this->error('Method not allowed', 405);
         }
 
-        $user = $this->request->user();
+        $token = $this->request->header('Authorization');
         
-        if (!$user) {
-            $this->error('User not authenticated', 401, ['auth' => 'Authentication required']);
+        if (empty($token)) {
+            $this->error('Authentication token required', 401, ['token' => 'Authorization header is required']);
         }
-
+        
+        // Remove 'Bearer ' prefix if present
+        if (strpos($token, 'Bearer ') === 0) {
+            $token = substr($token, 7);
+        }
+        
+        if (empty($token)) {
+            $this->error('Invalid token format', 400, ['token' => 'Token format is invalid']);
+        }
+        
+        $tokenModel = new Token();
+        $tokenData = $tokenModel->findByToken($token);
+        
+        if (!$tokenData) {
+            $this->error('Invalid or expired token', 401, ['token' => 'Token not found']);
+        }
+        
+        if (time() > strtotime($tokenData['expires_at'])) {
+            $this->error('Token expired', 401, ['token' => 'Token expired']);
+        }
+        
+        if (!isset($tokenData['user']) || !is_array($tokenData['user'])) {
+            $this->error('Invalid token data', 401, ['token' => 'Token data is invalid']);
+        }
+        
+        $user = $tokenData['user'];
+        
         // Return consistent JSON response
         $this->success([
-            'user' => $user
+            'user' => $user,
+            'token' => $token,
+            'token_type' => 'Bearer'
         ], 'User retrieved successfully');
     }
 }

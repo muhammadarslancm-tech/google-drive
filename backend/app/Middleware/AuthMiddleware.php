@@ -13,13 +13,14 @@ class AuthMiddleware
 {
     public function handle(Request $request): bool
     {
-        $token = $request->header('Authorization');
+        $authHeader = $request->header('Authorization');
         
-        if (empty($token)) {
+        if (empty($authHeader)) {
             $this->sendError('Authentication required', 401);
         }
 
         // Remove 'Bearer ' prefix and trim whitespace
+        $token = $authHeader;
         if (stripos($token, 'Bearer ') === 0) {
             $token = substr($token, 7);
         }
@@ -33,6 +34,8 @@ class AuthMiddleware
         $tokenData = $tokenModel->findByToken($token);
 
         if (!$tokenData) {
+            // Log for debugging (remove in production)
+            error_log("Token not found in database. Token length: " . strlen($token) . ", First 10 chars: " . substr($token, 0, 10));
             $this->sendError('Invalid or expired token', 401);
         }
 

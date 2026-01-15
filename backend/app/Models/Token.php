@@ -49,7 +49,12 @@ class Token extends Model
             'updated_at' => new \MongoDB\BSON\UTCDateTime()
         ];
 
-        $this->create($data);
+        $insertedId = $this->create($data);
+        
+        if (!$insertedId) {
+            error_log('Token creation failed: Insert returned null. Token: ' . substr($token, 0, 10) . '...');
+            throw new \Exception('Failed to save token to database');
+        }
         
         return $token;
     }

@@ -244,11 +244,15 @@
                 axios.post(API_BASE_URL + '/auth/login', { email, password })
                     .then(function(response) {
                         if (response.data?.success && response.data.data?.token) {
-                            localStorage.setItem('token', response.data.data.token);
+                            const token = response.data.data.token;
+                            localStorage.setItem('token', token);
                             if (response.data.data.user) {
                                 localStorage.setItem('user', JSON.stringify(response.data.data.user));
                             }
-                            window.location.href = '/frontend/dashboard.html';
+                            // Small delay to ensure token is saved in database
+                            setTimeout(() => {
+                                window.location.href = '/frontend/dashboard.html';
+                            }, 100);
                         } else {
                             alert(response.data?.message || 'Login failed. Please try again.');
                             submitBtn.prop('disabled', false).text(originalText);

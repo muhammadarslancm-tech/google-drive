@@ -576,7 +576,7 @@ async function verifyAuthentication() {
 
     try {
         const response = await axios.get(`${API_BASE_URL}/auth/me`);
-
+        console.log(response.data);
         if (response.data?.success && response.data.data?.user) {
             localStorage.setItem('user', JSON.stringify(response.data.data.user));
             return true;
