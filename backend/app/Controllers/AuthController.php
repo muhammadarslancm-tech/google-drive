@@ -188,6 +188,7 @@ class AuthController extends Controller
      * Get current authenticated user
      * GET /api/auth/me
      * Requires: Authorization header with Bearer token
+     * Verifies token against database and returns user
      * 
      * @return void (JSON response)
      */
@@ -198,37 +199,47 @@ class AuthController extends Controller
             $this->error('Method not allowed', 405);
         }
 
+        // Get token from Authorization header
         $token = $this->request->header('Authorization');
         
         if (empty($token)) {
             $this->error('Authentication token required', 401, ['token' => 'Authorization header is required']);
         }
-        
+
         // Remove 'Bearer ' prefix if present
         if (strpos($token, 'Bearer ') === 0) {
             $token = substr($token, 7);
         }
-        
+        $token = trim($token);
+
         if (empty($token)) {
             $this->error('Invalid token format', 400, ['token' => 'Token format is invalid']);
         }
-        
+
+        // Verify token against database
         $tokenModel = new Token();
         $tokenData = $tokenModel->findByToken($token);
-        
+
         if (!$tokenData) {
-            $this->error('Invalid or expired token', 401, ['token' => 'Token not found']);
+            $this->error('Invalid or expired token', 401, ['token' => 'Token not found in database']);
         }
-        
+
+        // Check if token is expired
         if (time() > strtotime($tokenData['expires_at'])) {
-            $this->error('Token expired', 401, ['token' => 'Token expired']);
+            $this->error('Token expired', 401, ['token' => 'Token has expired']);
         }
-        
-        if (!isset($tokenData['user']) || !is_array($tokenData['user'])) {
+
+        // Get user from database using user_id from token
+        if (!isset($tokenData['user_id'])) {
             $this->error('Invalid token data', 401, ['token' => 'Token data is invalid']);
         }
-        
-        $user = $tokenData['user'];
+
+        $userModel = new User();
+        $user = $userModel->findByIdSafe($tokenData['user_id']);
+
+        if (!$user) {
+            $this->error('User not found', 404, ['user' => 'User associated with token not found']);
+        }
         
         // Return consistent JSON response
         $this->success([

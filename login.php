@@ -243,22 +243,37 @@
 
                 axios.post(API_BASE_URL + '/auth/login', { email, password })
                     .then(function(response) {
+                        console.log('Login response:', response.data);
                         if (response.data?.success && response.data.data?.token) {
-                            const token = response.data.data.token;
+                            const token = String(response.data.data.token).trim();
+                            const user = response.data.data.user;
+                            
+                            // Save token and user to localStorage
                             localStorage.setItem('token', token);
-                            if (response.data.data.user) {
-                                localStorage.setItem('user', JSON.stringify(response.data.data.user));
+                            if (user) {
+                                localStorage.setItem('user', JSON.stringify(user));
                             }
-                            // Small delay to ensure token is saved in database
-                            setTimeout(() => {
-                                window.location.href = '/frontend/dashboard.html';
-                            }, 100);
+                            
+                            // Verify token was saved
+                            const savedToken = localStorage.getItem('token');
+                            if (!savedToken || savedToken !== token) {
+                                console.error('Token not saved correctly to localStorage');
+                                alert('Failed to save authentication token. Please try again.');
+                                submitBtn.prop('disabled', false).text(originalText);
+                                return;
+                            }
+                            
+                            console.log('Token saved successfully, redirecting...');
+                            // Redirect immediately - no delay needed
+                            window.location.href = '/frontend/dashboard.html';
                         } else {
+                            console.error('Login failed:', response.data);
                             alert(response.data?.message || 'Login failed. Please try again.');
                             submitBtn.prop('disabled', false).text(originalText);
                         }
                     })
                     .catch(function(error) {
+                        console.error('Login error:', error);
                         const message = error.response?.data?.message || 'Login failed. Please try again.';
                         alert(message);
                         submitBtn.prop('disabled', false).text(originalText);

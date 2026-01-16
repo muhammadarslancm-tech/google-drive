@@ -10,8 +10,12 @@ axios.interceptors.request.use(config => {
         config.headers['Content-Type'] = 'application/json';
     }
     const token = localStorage.getItem('token');
+    console.log('token = ', token);
     if (token) {
-        config.headers.Authorization = `Bearer ${token}`;
+        console.log('token = ', token);
+        // Trim token to ensure no whitespace issues
+        const cleanToken = String(token).trim();
+        config.headers.Authorization = `Bearer ${cleanToken}`;
     }
     return config;
 });
@@ -20,7 +24,9 @@ axios.interceptors.request.use(config => {
 axios.interceptors.response.use(
     response => response,
     error => {
-        if (error.response?.status === 401) {
+        // Only handle 401 errors, and only if we're not already on the login page
+        if (error.response?.status === 401 && !window.location.pathname.includes('login.php')) {
+            console.log('401 Unauthorized - clearing token and redirecting to login');
             localStorage.removeItem('token');
             localStorage.removeItem('user');
             window.location.href = '/login.php';
@@ -29,12 +35,12 @@ axios.interceptors.response.use(
     }
 );
 
-// Application State
+// // Application State
 let currentView = 'files';
 let currentFolderId = null;
 let currentUser = null;
 
-// Initialize app
+// // Initialize app
 $(document).ready(async function() {
     // Verify authentication before loading dashboard
     await verifyAuthentication();
@@ -46,10 +52,10 @@ $(document).ready(async function() {
         displayUserInfo(currentUser);
     }
     
-    // Load initial view
-    loadFiles();
+    // // Load initial view
+    // loadFiles();
     
-    // Event listeners
+    // // Event listeners
     $('.sidebar-menu a[data-view]').on('click', function(e) {
         e.preventDefault();
         const view = $(this).data('view');
@@ -63,7 +69,7 @@ $(document).ready(async function() {
     $('#searchInput').on('keyup', handleSearch);
 });
 
-// Switch between views
+// // Switch between views
 function switchView(view) {
     currentView = view;
     $('.sidebar-menu a').removeClass('active');
@@ -361,7 +367,7 @@ function displayStorage(stats) {
     $('#storageStats').html(html);
 }
 
-// File operations
+// // File operations
 function handleFileUpload(e) {
     const files = e.target.files;
     if (files.length === 0) return;
@@ -465,7 +471,7 @@ function shareFile(fileId) {
     });
 }
 
-// Folder operations
+// // Folder operations
 function showCreateFolderModal() {
     const name = prompt('Enter folder name:');
     if (!name) return;
@@ -488,113 +494,148 @@ function showCreateFolderModal() {
         });
 }
 
-function openFolder(folderId) {
-    currentView = 'files';
-    loadFiles(folderId);
-}
+// function openFolder(folderId) {
+//     currentView = 'files';
+//     loadFiles(folderId);
+// }
 
-function deleteFolder(folderId) {
-    if (!confirm('Are you sure you want to delete this folder?')) return;
+// function deleteFolder(folderId) {
+//     if (!confirm('Are you sure you want to delete this folder?')) return;
     
-    axios.delete(`${API_BASE_URL}/folders/${folderId}`)
-        .then(() => {
-            alert('Folder moved to trash');
-            loadFolders();
-        })
-        .catch(error => {
-            alert('Error deleting folder: ' + (error.response?.data?.message || error.message));
-        });
-}
+//     axios.delete(`${API_BASE_URL}/folders/${folderId}`)
+//         .then(() => {
+//             alert('Folder moved to trash');
+//             loadFolders();
+//         })
+//         .catch(error => {
+//             alert('Error deleting folder: ' + (error.response?.data?.message || error.message));
+//         });
+// }
 
-function restoreFolder(folderId) {
-    axios.post(`${API_BASE_URL}/folders/${folderId}/restore`)
-        .then(() => {
-            alert('Folder restored');
-            loadTrash();
-        })
-        .catch(error => {
-            alert('Error restoring folder: ' + (error.response?.data?.message || error.message));
-        });
-}
+// function restoreFolder(folderId) {
+//     axios.post(`${API_BASE_URL}/folders/${folderId}/restore`)
+//         .then(() => {
+//             alert('Folder restored');
+//             loadTrash();
+//         })
+//         .catch(error => {
+//             alert('Error restoring folder: ' + (error.response?.data?.message || error.message));
+//         });
+// }
 
-function permanentDeleteFolder(folderId) {
-    if (!confirm('Are you sure you want to permanently delete this folder? This action cannot be undone.')) return;
+// function permanentDeleteFolder(folderId) {
+//     if (!confirm('Are you sure you want to permanently delete this folder? This action cannot be undone.')) return;
     
-    axios.delete(`${API_BASE_URL}/folders/${folderId}/permanent`)
-        .then(() => {
-            alert('Folder permanently deleted');
-            loadTrash();
-        })
-        .catch(error => {
-            alert('Error deleting folder: ' + (error.response?.data?.message || error.message));
-        });
-}
+//     axios.delete(`${API_BASE_URL}/folders/${folderId}/permanent`)
+//         .then(() => {
+//             alert('Folder permanently deleted');
+//             loadTrash();
+//         })
+//         .catch(error => {
+//             alert('Error deleting folder: ' + (error.response?.data?.message || error.message));
+//         });
+// }
 
-function renameFolder(folderId, currentName) {
-    const newName = prompt('Enter new name:', currentName);
-    if (!newName || newName === currentName) return;
+// function renameFolder(folderId, currentName) {
+//     const newName = prompt('Enter new name:', currentName);
+//     if (!newName || newName === currentName) return;
     
-    axios.put(`${API_BASE_URL}/folders/${folderId}`, { name: newName })
-        .then(() => {
-            alert('Folder renamed');
-            loadFolders();
-        })
-        .catch(error => {
-            alert('Error renaming folder: ' + (error.response?.data?.message || error.message));
-        });
-}
+//     axios.put(`${API_BASE_URL}/folders/${folderId}`, { name: newName })
+//         .then(() => {
+//             alert('Folder renamed');
+//             loadFolders();
+//         })
+//         .catch(error => {
+//             alert('Error renaming folder: ' + (error.response?.data?.message || error.message));
+//         });
+// }
 
-function shareFolder(folderId) {
-    const email = prompt('Enter email to share with:');
-    if (!email) return;
+// function shareFolder(folderId) {
+//     const email = prompt('Enter email to share with:');
+//     if (!email) return;
     
-    const permission = confirm('Allow write access? (OK for write, Cancel for read only)') ? 'write' : 'read';
+//     const permission = confirm('Allow write access? (OK for write, Cancel for read only)') ? 'write' : 'read';
     
-    axios.post(`${API_BASE_URL}/shares`, {
-        resource_id: folderId,
-        resource_type: 'folder',
-        shared_with_email: email,
-        permission: permission
-    })
-    .then(() => {
-        alert('Folder shared successfully');
-    })
-    .catch(error => {
-        alert('Error sharing folder: ' + (error.response?.data?.message || error.message));
-    });
-}
+//     axios.post(`${API_BASE_URL}/shares`, {
+//         resource_id: folderId,
+//         resource_type: 'folder',
+//         shared_with_email: email,
+//         permission: permission
+//     })
+//     .then(() => {
+//         alert('Folder shared successfully');
+//     })
+//     .catch(error => {
+//         alert('Error sharing folder: ' + (error.response?.data?.message || error.message));
+//     });
+// }
 
-// Authentication verification
+// // Authentication verification
 async function verifyAuthentication() {
     const token = localStorage.getItem('token');
-    const user = localStorage.getItem('user');
     
-    if (!token || !user) {
+    if (!token) {
+        console.log('No token found in localStorage, redirecting to login');
+        localStorage.removeItem('user');
         window.location.href = '/login.php';
-        return;
+        return false;
+    }
+
+    // Trim token to remove any whitespace
+    const cleanToken = String(token).trim();
+    if (cleanToken !== token) {
+        localStorage.setItem('token', cleanToken);
     }
 
     try {
-        const response = await axios.get(`${API_BASE_URL}/auth/me`);
-        console.log(response.data);
+        console.log('Verifying authentication with token...');
+        const response = await axios.get(`${API_BASE_URL}/auth/me`, {
+            headers: {
+                'Authorization': `Bearer ${cleanToken}`
+            }
+        });
+        
+        console.log('Auth verification response:', response.data);
+        
         if (response.data?.success && response.data.data?.user) {
+            // Update user info in localStorage
             localStorage.setItem('user', JSON.stringify(response.data.data.user));
+            
+            // If token was returned, update it (in case it was refreshed)
+            if (response.data.data.token) {
+                const newToken = String(response.data.data.token).trim();
+                localStorage.setItem('token', newToken);
+            }
+            
+            console.log('Authentication verified successfully');
             return true;
         } else {
+            console.error('Invalid response structure:', response.data);
             localStorage.removeItem('token');
             localStorage.removeItem('user');
             window.location.href = '/login.php';
             return false;
         }
     } catch (error) {
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
-        window.location.href = '/login.php';
+        console.error('Authentication verification failed:', error);
+        console.error('Error response:', error.response?.data);
+        console.error('Error status:', error.response?.status);
+        
+        // Only redirect if it's a 401 (unauthorized) or 403 (forbidden)
+        // Other errors might be temporary network issues
+        if (error.response?.status === 401 || error.response?.status === 403) {
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            window.location.href = '/login.php';
+        } else {
+            // For other errors, show a message but don't redirect
+            console.error('Non-auth error during verification, continuing anyway');
+        }
         return false;
     }
 }
 
-// Utility functions
+// // Utility functions
 function handleLogout() {
     if (!confirm('Are you sure you want to logout?')) return;
     
